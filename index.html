@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedInfo AI - Smart Medical Assistant</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 5px;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+
+        .api-status {
+            text-align: center;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+        .api-ready { background: #1b4332; color: #95d5b2; }
+        .api-not-ready { background: #4a1515; color: #f8d7da; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: #1e1e2f;
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid #333;
+        }
+
+        .card h2 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .input-group { margin-bottom: 15px; }
+
+        label { display: block; margin-bottom: 5px; color: #aaa; }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            background: #2a2a3e;
+            border: 2px solid #444;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        textarea { min-height: 120px; resize: vertical; }
+
+        button {
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        button:hover { transform: translateY(-2px); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .response {
+            margin-top: 15px;
+            padding: 15px;
+            background: #252536;
+            border-radius: 10px;
+            border-left: 4px solid #00d4ff;
+            max-height: 500px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .response.show { display: block; }
+
+        .response-content {
+            line-height: 1.7;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+
+        .tab-btn {
+            padding: 10px 20px;
+            background: #2a2a3e;
+            border: none;
+            border-radius: 8px;
+            color: #aaa;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active { background: #00d4ff; color: #000; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .chat-message { margin-bottom: 15px; padding: 10px; border-radius: 8px; }
+        .chat-user { background: #3a3a5e; margin-left: 20%; }
+        .chat-ai { background: #2a2a3e; margin-right: 20%; }
+
+        .doc-list { margin-top: 15px; }
+        .doc-item {
+            padding: 10px;
+            background: #2a2a3e;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .doc-item:hover { background: #3a3a5e; }
+
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .loading .spinner {
+            border: 4px solid #333;
+            border-top: 4px solid #00d4ff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        .loading p { color: #888; }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .disclaimer {
+            margin-top: 15px;
+            padding: 12px;
+            background: #4a3520;
+            border-radius: 5px;
+            font-size: 12px;
+            color: #ffba7a;
+        }
+
+        .error-msg {
+            background: #4a1515;
+            color: #f8d7da;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .status-success { background: #1b4332; color: #95d5b2; }
+        .status-error { background: #4a1515; color: #f8d7da; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏥 MedInfo AI</h1>
+        <p class="subtitle">Smart Medical Assistant powered by Gemini AI</p>
+
+        <div class="api-status" id="apiStatus"></div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('upload')">📤 Upload</button>
+            <button class="tab-btn" onclick="showTab('chat')">💬 Chat</button>
+            <button class="tab-btn" onclick="showTab('drug')">💊 Explain Drug</button>
+            <button class="tab-btn" onclick="showTab('terms')">📚 Medical Terms</button>
+            <button class="tab-btn" onclick="showTab('compare')">⚖️ Compare Meds</button>
+            <button class="tab-btn" onclick="showTab('ask')">❓ Ask Anything</button>
+        </div>
+
+        <!-- UPLOAD TAB -->
+        <div id="upload" class="tab-content active">
+            <div class="grid">
+                <div class="card">
+                    <h2>📤 Upload Clinical Document</h2>
+                    <div class="input-group">
+                        <label>Paste clinical notes or upload file:</label>
+                        <textarea id="docText" placeholder="Paste patient clinical notes here..."></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label>Title (optional):</label>
+                        <input type="text" id="docTitle" placeholder="e.g., Patient John Doe - Diabetes">
+                    </div>
+                    <button onclick="uploadText()">Upload Document</button>
+
+                    <div class="doc-list" id="docList"></div>
+                </div>
+
+                <div class="card">
+                    <h2>📋 Your Documents</h2>
+                    <p style="color:#888">Upload clinical documents to chat with them!</p>
+                    <div id="documentsList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CHAT WITH DOCUMENT TAB -->
+        <div id="chat" class="tab-content">
+            <div class="card">
+                <h2>💬 Chat with Document</h2>
+                <div class="input-group">
+                    <label>Select Document:</label>
+                    <select id="chatDocId">
+                        <option value="">-- Select a document --</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Ask questions about the document:</label>
+                    <textarea id="chatQuestion" placeholder="What medications is the patient taking? What is the diagnosis?"></textarea>
+                </div>
+                <button onclick="chatWithDoc()">Get Answer</button>
+
+                <div id="chatHistory" style="margin-top:20px; max-height:400px; overflow-y:auto;"></div>
+            </div>
+        </div>
+
+        <!-- EXPLAIN DRUG TAB -->
+        <div id="drug" class="tab-content">
+            <div class="card">
+                <h2>💊 Explain Drug (Simple Language)</h2>
+                <p style="color:#888; margin-bottom:15px;">Enter any medication name - we'll explain it in simple terms for non-medical students!</p>
+                <div class="input-group">
+                    <label>Drug Name:</label>
+                    <input type="text" id="drugName" placeholder="e.g., Metformin, Lisinopril, Amoxicillin">
+                </div>
+                <button onclick="explainDrug()" id="drugBtn">Explain in Simple Terms</button>
+
+                <div id="drugResponse" class="response">
+                    <div id="drugResponseContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MEDICAL TERMS TAB -->
+        <div id="terms" class="tab-content">
+            <div class="card">
+                <h2>📚 Explain Medical Term</h2>
+                <p style="color:#888; margin-bottom:15px;">Don't understand a medical term? We'll explain it simply!</p>
+                <div class="input-group">
+                    <label>Medical Term:</label>
+                    <input type="text" id="medicalTerm" placeholder="e.g., Hypertension, Metformin, Bradycardia">
+                </div>
+                <button onclick="explainTerm()" id="termBtn">Explain Simply</button>
+
+                <div id="termResponse" class="response">
+                    <div id="termResponseContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COMPARE MEDICATIONS TAB -->
+        <div id="compare" class="tab-content">
+            <div class="card">
+                <h2>⚖️ Compare Medications</h2>
+                <p style="color:#888; margin-bottom:15px;">Enter multiple medications to compare them in simple terms!</p>
+                <div class="input-group">
+                    <label>Medications (comma separated):</label>
+                    <input type="text" id="compareMeds" placeholder="e.g., Metformin, Lisinopril, Atorvastatin">
+                </div>
+                <button onclick="compareMeds()" id="compareBtn">Compare</button>
+
+                <div id="compareResponse" class="response">
+                    <div id="compareResponseContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ASK ANYTHING TAB -->
+        <div id="ask" class="tab-content">
+            <div class="card">
+                <h2>❓ Ask Anything (AI powered)</h2>
+                <p style="color:#888; margin-bottom:15px;">Ask any medical question - Gemini AI will answer!</p>
+                <div class="input-group">
+                    <label>Your Question:</label>
+                    <textarea id="askQuestion" placeholder="What are the symptoms of diabetes? How does insulin work?"></textarea>
+                </div>
+                <button onclick="askAnything()" id="askBtn">Get Answer</button>
+
+                <div id="askResponse" class="response">
+                    <div id="askResponseContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = "http://localhost:8001";
+
+        // Check API status
+        async function checkStatus() {
+            try {
+                const res = await fetch(API + "/");
+                const data = await res.json();
+                const statusEl = document.getElementById("apiStatus");
+                if (data.gemini_ready) {
+                    statusEl.className = "api-status api-ready";
+                    statusEl.textContent = "✅ Gemini AI Connected - Ready to help!";
+                } else {
+                    statusEl.className = "api-status api-not-ready";
+                    statusEl.textContent = "⚠️ Gemini API not configured. Some features may not work.";
+                }
+            } catch (e) {
+                document.getElementById("apiStatus").className = "api-status api-not-ready";
+                document.getElementById("apiStatus").textContent = "❌ API not connected. Start the server first!";
+            }
+        }
+
+        function showTab(tabId) {
+            document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+            document.getElementById(tabId).classList.add("active");
+            event.target.classList.add("active");
+        }
+
+        // Show loading state in a specific response div
+        function showLoading(responseId, contentId, buttonId = null) {
+            const responseDiv = document.getElementById(responseId);
+            const contentDiv = document.getElementById(contentId);
+
+            responseDiv.classList.add('show');
+            contentDiv.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Thinking... This may take a few seconds</p>
+                </div>
+            `;
+
+            if (buttonId) {
+                const btn = document.getElementById(buttonId);
+                if (btn) btn.disabled = true;
+            }
+        }
+
+        // Show response/error in the response div
+        function showResponse(responseId, contentId, data, buttonId = null) {
+            const responseDiv = document.getElementById(responseId);
+            const contentDiv = document.getElementById(contentId);
+
+            if (buttonId) {
+                const btn = document.getElementById(buttonId);
+                if (btn) btn.disabled = false;
+            }
+
+            if (data.status === "error") {
+                contentDiv.innerHTML = `
+                    <span class="status-badge status-error">ERROR</span>
+                    <div class="error-msg">${data.error || data.explanation || "An error occurred"}</div>
+                `;
+            } else {
+                const text = data.answer || data.explanation || data.comparison || data.suggestions || "";
+                let html = `<span class="status-badge status-success">SUCCESS</span><div class="response-content">${text}</div>`;
+
+                if (data.disclaimer) {
+                    html += `<div class="disclaimer">${data.disclaimer}</div>`;
+                }
+
+                contentDiv.innerHTML = html;
+            }
+
+            responseDiv.classList.add('show');
+        }
+
+        // Upload document
+        async function uploadText() {
+            const text = document.getElementById("docText").value;
+            const title = document.getElementById("docTitle").value || "Untitled";
+            if (!text.trim()) return alert("Please enter document text!");
+
+            try {
+                const res = await fetch(API + "/upload_text", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({text, title})
+                });
+                const data = await res.json();
+                alert(data.message);
+                loadDocuments();
+                document.getElementById("docText").value = "";
+            } catch (e) {
+                alert("Error uploading: " + e.message);
+            }
+        }
+
+        // Load documents
+        async function loadDocuments() {
+            try {
+                const res = await fetch(API + "/documents");
+                const data = await res.json();
+                const list = document.getElementById("documentsList");
+                list.innerHTML = data.documents.map(d =>
+                    `<div class="doc-item">📄 ${d.doc_id}: ${d.preview}</div>`
+                ).join("");
+
+                // Update select options
+                const select = document.getElementById("chatDocId");
+                select.innerHTML = '<option value="">-- Select a document --</option>' +
+                    data.documents.map(d => `<option value="${d.doc_id}">${d.doc_id}</option>`).join("");
+            } catch (e) {
+                console.error("Error loading documents:", e);
+            }
+        }
+
+        // Chat with document
+        async function chatWithDoc() {
+            const docId = document.getElementById("chatDocId").value;
+            const question = document.getElementById("chatQuestion").value;
+            if (!docId) return alert("Select a document first!");
+            if (!question.trim()) return alert("Ask a question!");
+
+            try {
+                const res = await fetch(API + "/chat", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({doc_id: docId, question})
+                });
+                const data = await res.json();
+
+                const history = document.getElementById("chatHistory");
+                history.innerHTML += `
+                    <div class="chat-message chat-user"><strong>You:</strong> ${question}</div>
+                    <div class="chat-message chat-ai"><strong>AI:</strong> ${data.answer}</div>
+                `;
+                document.getElementById("chatQuestion").value = "";
+            } catch (e) {
+                alert("Error: " + e.message);
+            }
+        }
+
+        // Explain drug simply
+        async function explainDrug() {
+            const drug = document.getElementById("drugName").value;
+            if (!drug.trim()) return alert("Enter a drug name!");
+
+            showLoading("drugResponse", "drugResponseContent", "drugBtn");
+
+            try {
+                const res = await fetch(API + "/explain_drug", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({drug})
+                });
+                const data = await res.json();
+                console.log("Drug response:", data); // Debug log
+                showResponse("drugResponse", "drugResponseContent", data, "drugBtn");
+            } catch (e) {
+                console.error("Error:", e);
+                showResponse("drugResponse", "drugResponseContent", {status: "error", error: e.message}, "drugBtn");
+            }
+        }
+
+        // Explain medical term
+        async function explainTerm() {
+            const term = document.getElementById("medicalTerm").value;
+            if (!term.trim()) return alert("Enter a medical term!");
+
+            showLoading("termResponse", "termResponseContent", "termBtn");
+
+            try {
+                const res = await fetch(API + "/explain_term", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({term})
+                });
+                const data = await res.json();
+                console.log("Term response:", data); // Debug log
+                showResponse("termResponse", "termResponseContent", data, "termBtn");
+            } catch (e) {
+                console.error("Error:", e);
+                showResponse("termResponse", "termResponseContent", {status: "error", error: e.message}, "termBtn");
+            }
+        }
+
+        // Compare medications
+        async function compareMeds() {
+            const meds = document.getElementById("compareMeds").value;
+            if (!meds.trim()) return alert("Enter medications!");
+
+            const medsList = meds.split(",").map(m => m.trim());
+            showLoading("compareResponse", "compareResponseContent", "compareBtn");
+
+            try {
+                const res = await fetch(API + "/compare", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({medicines: medsList})
+                });
+                const data = await res.json();
+                console.log("Compare response:", data); // Debug log
+                showResponse("compareResponse", "compareResponseContent", data, "compareBtn");
+            } catch (e) {
+                console.error("Error:", e);
+                showResponse("compareResponse", "compareResponseContent", {status: "error", error: e.message}, "compareBtn");
+            }
+        }
+
+        // Ask anything
+        async function askAnything() {
+            const question = document.getElementById("askQuestion").value;
+            if (!question.trim()) return alert("Ask a question!");
+
+            showLoading("askResponse", "askResponseContent", "askBtn");
+
+            try {
+                const res = await fetch(API + "/ask", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({question})
+                });
+                const data = await res.json();
+                console.log("Ask response:", data); // Debug log
+                showResponse("askResponse", "askResponseContent", data, "askBtn");
+            } catch (e) {
+                console.error("Error:", e);
+                showResponse("askResponse", "askResponseContent", {status: "error", error: e.message}, "askBtn");
+            }
+        }
+
+        // Init
+        checkStatus();
+        loadDocuments();
+    </script>
+</body>
+</html>
